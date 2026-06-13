@@ -6,6 +6,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using System.Linq;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// A class which manages pages of UI elements
@@ -17,6 +18,27 @@ public class UIManager : MonoBehaviour
     [Header("Page Management")]
     [Tooltip("The pages (Panels) managed by the UI Manager")]
     public List<UIPage> pages;
+
+    /// <summary>
+    /// Description:
+    /// Editor helper. Available from the UIManager component's context menu (the 3-dots
+    /// menu in the Inspector). Finds every UIPage in the scene - including inactive
+    /// ones - and fills the pages list with them.
+    /// Input:
+    /// none
+    /// Return:
+    /// void (no return)
+    /// </summary>
+    [ContextMenu("Add All Pages In Scene")]
+    private void AddAllPagesInScene()
+    {
+        UIPage[] l_found = FindObjectsOfType<UIPage>(true);
+        pages = l_found.ToList();
+#if UNITY_EDITOR
+        UnityEditor.EditorUtility.SetDirty(this);
+#endif
+        Debug.Log("UIManager: added " + pages.Count + " UIPage(s) to the pages list.");
+    }
     [Tooltip("The index of the active page in the UI")]
     public int currentPage = 0;
     [Tooltip("The page (by index) switched to when the UI Manager starts up")]
@@ -41,6 +63,10 @@ public class UIManager : MonoBehaviour
     [SerializeField]
     private InputManager inputManager;
 
+    [Tooltip("Name of the main menu scene. When it loads, this (persistent) UIManager returns to the default page.")]
+    [SerializeField]
+    private string m_MainMenuSceneName = "MainMenu";
+
     /// <summary>
     /// Description:
     /// Standard Unity function called whenever the attached game object is enabled
@@ -54,6 +80,44 @@ public class UIManager : MonoBehaviour
     private void OnEnable()
     {
         SetupGameManagerUIManager();
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    /// <summary>
+    /// Description:
+    /// Unsubscribes from the scene loaded event when this object is disabled/destroyed.
+    /// Input:
+    /// none
+    /// Return:
+    /// void (no return)
+    /// </summary>
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    /// <summary>
+    /// Description:
+    /// Called whenever a scene finishes loading. Because this UIManager is persistent,
+    /// returning to the main menu must re-show the menu page.
+    /// Input:
+    /// Scene a_scene, LoadSceneMode a_mode
+    /// Return:
+    /// void (no return)
+    /// </summary>
+    /// <param name="a_scene">The scene that was loaded</param>
+    /// <param name="a_mode">The mode the scene was loaded with</param>
+    private void OnSceneLoaded(Scene a_scene, LoadSceneMode a_mode)
+    {
+        if (a_scene.name == m_MainMenuSceneName)
+        {
+            // sceneLoaded can fire before this (persistent) UIManager's Start has run,
+            // so re-acquire the scene references before navigating.
+            SetUpEventSystem();
+            SetUpUIElements();
+            allowPause = true;
+            GoToPage(defaultPage);
+        }
     }
 
     /// <summary>
@@ -184,6 +248,9 @@ public class UIManager : MonoBehaviour
         SetUpEventSystem();
         SetUpUIElements();
         UpdateUI();
+        // sceneLoaded does not fire for the scene already open at launch, so show the
+        // default page here (otherwise authored-active pages like Pause stay visible).
+        GoToPage(defaultPage);
     }
 
     /// <summary>

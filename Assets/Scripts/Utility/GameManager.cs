@@ -197,6 +197,52 @@ public class GameManager : MonoBehaviour
 
     /// <summary>
     /// Description:
+    /// Configures the shared GameManager for a freshly loaded level prefab.
+    /// Copies the level-specific values from the Level component, resets the
+    /// per-level state (enemies defeated, game over flag), re-enables the player,
+    /// and clears any open UI pages so gameplay can resume. Called by LevelManager
+    /// each time a level prefab is instantiated.
+    /// Input:
+    /// Level level (the Level component on the instantiated level prefab; may be null)
+    /// Return:
+    /// void (no return)
+    /// </summary>
+    /// <param name="a_level">The Level config component from the loaded level prefab</param>
+    public void ConfigureForLevel(Level a_level)
+    {
+        if (a_level != null)
+        {
+            enemiesToDefeat = a_level.EnemiesToDefeat;
+            victoryEffect = a_level.VictoryEffect;
+        }
+
+        enemiesDefeated = 0;
+        gameIsOver = false;
+        // Loading a level means we are in a playable, winnable state. Set this here so
+        // it does not depend on the (persistent) GameManager's authored menu value.
+        gameIsWinnable = true;
+
+        if (player != null)
+        {
+            player.SetActive(true);
+        }
+
+        if (uiManager != null)
+        {
+            uiManager.allowPause = true;
+            uiManager.SetActiveAllPages(false);
+        }
+
+        if (printDebugOfWinnableStatus)
+        {
+            FigureOutHowManyEnemiesExist();
+        }
+
+        UpdateUIElements();
+    }
+
+    /// <summary>
+    /// Description:
     /// Standard Unity function that gets called when the application (or playmode) ends
     /// Input:
     /// none
