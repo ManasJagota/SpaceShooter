@@ -2,14 +2,20 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using MjCreates.Pooling;
+using MjCreates.Events;
 
 /// <summary>
 /// This class handles the health state of a game object.
-/// 
+///
 /// Implementation Notes: 2D Rigidbodies must be set to never sleep for this to interact with trigger stay damage
 /// </summary>
-public class Health : MonoBehaviour
+public class Health : MonoBehaviour, IPoolable
 {
+    // The authored starting values, captured once so a pooled instance can reset itself to the
+    // exact state a freshly instantiated one would have.
+    private int m_InitialHealth;
+    private int m_InitialLives;
     [Header("Team Settings")]
     [Tooltip("The team associated with this damage")]
     public int teamId = 0;
@@ -45,6 +51,53 @@ public class Health : MonoBehaviour
     void Start()
     {
         SetRespawnPoint(transform.position);
+    }
+
+    /// <summary>
+    /// Description:
+    /// Standard Unity function called when the instance is first created. Captures the authored
+    /// starting values so pooled reuse can restore them.
+    /// Inputs:
+    /// none
+    /// Returns:
+    /// void (no return)
+    /// </summary>
+    void Awake()
+    {
+        m_InitialHealth = currentHealth;
+        m_InitialLives = currentLives;
+    }
+
+    /// <summary>
+    /// Description:
+    /// Pool hook. Runs each time this object is taken from the pool (Awake/Start do not re-run).
+    /// Restores health, lives, and invincibility to the authored starting state so a reused
+    /// instance behaves like a freshly spawned one.
+    /// Inputs:
+    /// none
+    /// Returns:
+    /// void (no return)
+    /// </summary>
+    public void OnSpawn()
+    {
+        currentHealth = m_InitialHealth;
+        currentLives = m_InitialLives;
+        isInvincableFromDamage = false;
+        timeToBecomeDamagableAgain = 0;
+        SetRespawnPoint(transform.position);
+    }
+
+    /// <summary>
+    /// Description:
+    /// Pool hook. Runs just before this object returns to the pool. No per-life resources to
+    /// release here.
+    /// Inputs:
+    /// none
+    /// Returns:
+    /// void (no return)
+    /// </summary>
+    public void OnDespawn()
+    {
     }
 
     /// <summary>
@@ -131,11 +184,15 @@ public class Health : MonoBehaviour
         {
             if (hitEffect != null)
             {
-                Instantiate(hitEffect, transform.position, transform.rotation, null);
+                PoolManager.Spawn(hitEffect, transform.position, transform.rotation);
             }
             timeToBecomeDamagableAgain = Time.time + invincibilityTime;
             isInvincableFromDamage = true;
             currentHealth -= damageAmount;
+            if (gameObject.CompareTag(GameConstants.c_PlayerTag))
+            {
+                EventManager.Publish(new PlayerDamagedEvent(currentHealth, maximumHealth));
+            }
             CheckDeath();
         }
     }
@@ -198,7 +255,7 @@ public class Health : MonoBehaviour
     {
         if (deathEffect != null)
         {
-            Instantiate(deathEffect, transform.position, transform.rotation, null);
+            PoolManager.Spawn(deathEffect, transform.position, transform.rotation);
         }
 
         if (useLives)
@@ -228,15 +285,16 @@ public class Health : MonoBehaviour
         }
         else
         {
-            if (gameObject.tag == "Player" && GameManager.instance != null)
+            if (gameObject.CompareTag(GameConstants.c_PlayerTag))
             {
-                GameManager.instance.GameOver();
+                EventManager.Publish(new PlayerDiedEvent());
             }
-            if (gameObject.GetComponent<Enemy>() != null)
+            Enemy enemy = gameObject.GetComponent<Enemy>();
+            if (enemy != null)
             {
-                gameObject.GetComponent<Enemy>().DoBeforeDestroy();
+                enemy.DoBeforeDestroy();
             }
-            Destroy(this.gameObject);
+            PoolManager.Despawn(this.gameObject);
         }
     }
 
@@ -250,14 +308,15 @@ public class Health : MonoBehaviour
     /// </summary>
     void HandleDeathWithoutLives()
     {
-        if (gameObject.tag == "Player" && GameManager.instance != null)
+        if (gameObject.CompareTag(GameConstants.c_PlayerTag))
         {
-            GameManager.instance.GameOver();
+            EventManager.Publish(new PlayerDiedEvent());
         }
-        if (gameObject.GetComponent<Enemy>() != null)
+        Enemy enemy = gameObject.GetComponent<Enemy>();
+        if (enemy != null)
         {
-            gameObject.GetComponent<Enemy>().DoBeforeDestroy();
+            enemy.DoBeforeDestroy();
         }
-        Destroy(this.gameObject);
+        PoolManager.Despawn(this.gameObject);
     }
 }

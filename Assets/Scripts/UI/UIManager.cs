@@ -53,9 +53,6 @@ public class UIManager : MonoBehaviour
     // Whether or not the application is paused
     private bool isPaused = false;
 
-    // A list of all UI element classes
-    private List<UIelement> UIelements;
-
     // The event system handling UI navigation
     [HideInInspector]
     public EventSystem eventSystem;
@@ -114,7 +111,6 @@ public class UIManager : MonoBehaviour
             // sceneLoaded can fire before this (persistent) UIManager's Start has run,
             // so re-acquire the scene references before navigating.
             SetUpEventSystem();
-            SetUpUIElements();
             allowPause = true;
             GoToPage(defaultPage);
         }
@@ -134,19 +130,6 @@ public class UIManager : MonoBehaviour
         {
             GameManager.instance.uiManager = this;
         }     
-    }
-
-    /// <summary>
-    /// Description:
-    /// Finds and stores all UIElements in the UIElements list
-    /// Input:
-    /// None
-    /// Return:
-    /// void (no return)
-    /// </summary>
-    private void SetUpUIElements()
-    {
-        UIelements = FindObjectsOfType<UIelement>().ToList();
     }
 
     /// <summary>
@@ -219,23 +202,6 @@ public class UIManager : MonoBehaviour
 
     /// <summary>
     /// Description:
-    /// Goes through all UI elements and calls their UpdateUI function
-    /// Input:
-    /// None
-    /// Return:
-    /// void (no return)
-    /// </summary>
-    public void UpdateUI()
-    {
-        SetUpUIElements();
-        foreach (UIelement uiElement in UIelements)
-        {
-            uiElement.UpdateUI();
-        }
-    }
-
-    /// <summary>
-    /// Description:
     /// Default Unity function that runs once when the script is first started and before Update
     /// Inputs: 
     /// none
@@ -246,8 +212,6 @@ public class UIManager : MonoBehaviour
     {
         SetUpInputManager();
         SetUpEventSystem();
-        SetUpUIElements();
-        UpdateUI();
         // sceneLoaded does not fire for the scene already open at launch, so show the
         // default page here (otherwise authored-active pages like Pause stay visible).
         GoToPage(defaultPage);

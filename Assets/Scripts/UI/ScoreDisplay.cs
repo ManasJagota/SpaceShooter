@@ -1,46 +1,59 @@
-﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using MjCreates.Events;
 
 /// <summary>
-/// This class inherits for the UIelement class and handles updating the score display
+/// Shows the player's score. Listens for ScoreChangedEvent instead of being polled/scanned, so it
+/// stays decoupled from the GameManager.
 /// </summary>
 public class ScoreDisplay : UIelement
 {
     [Tooltip("The text UI to use for display")]
     public Text displayText = null;
 
+    // The last score written to the label; lets us skip rebuilding the string when unchanged.
+    private int m_LastDisplayedScore = int.MinValue;
+
     /// <summary>
     /// Description:
-    /// Updates the score display
+    /// Subscribes to score changes while this display is enabled.
     /// Inputs:
     /// none
     /// Returns:
     /// void (no return)
     /// </summary>
-    public void DisplayScore()
+    private void OnEnable()
     {
-        if (displayText != null)
-        {
-            displayText.text = "Score: " + GameManager.score.ToString();
-        }
+        EventManager.Subscribe<ScoreChangedEvent>(OnScoreChanged);
     }
 
     /// <summary>
     /// Description:
-    /// Overides the virtual UpdateUI function and uses the DisplayScore to update the score display
+    /// Stops listening when disabled.
     /// Inputs:
     /// none
     /// Returns:
     /// void (no return)
     /// </summary>
-    public override void UpdateUI()
+    private void OnDisable()
     {
-        // This calls the base update UI function from the UIelement class
-        base.UpdateUI();
+        EventManager.Unsubscribe<ScoreChangedEvent>(OnScoreChanged);
+    }
 
-        // The remaining code is only called for this sub-class of UIelement and not others
-        DisplayScore();
+    /// <summary>
+    /// Description:
+    /// Handles a score change by updating the label.
+    /// Inputs:
+    /// ScoreChangedEvent a_event (carries the new score)
+    /// Returns:
+    /// void (no return)
+    /// </summary>
+    private void OnScoreChanged(ScoreChangedEvent a_event)
+    {
+        if (displayText != null && a_event.Score != m_LastDisplayedScore)
+        {
+            m_LastDisplayedScore = a_event.Score;
+            displayText.text = "Score: " + a_event.Score.ToString();
+        }
     }
 }

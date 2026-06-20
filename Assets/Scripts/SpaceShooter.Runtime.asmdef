@@ -1,0 +1,19 @@
+{
+    "name": "SpaceShooter.Runtime",
+    "rootNamespace": "",
+    "references": [
+        "Unity.InputSystem",
+        "UnityEngine.UI",
+        "MjCreates.Pooling",
+        "MjCreates.Events"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using MjCreates.Pooling;
 
 /// <summary>
 /// Lives in the single shared gameplay scene (Game.unity). Owns the list of level
@@ -79,7 +80,7 @@ public class LevelManager : MonoBehaviour
         // scene, so wire it into the persistent GameManager before loading a level.
         if (GameManager.instance != null && GameManager.instance.player == null)
         {
-            GameObject l_player = GameObject.FindWithTag("Player");
+            GameObject l_player = GameObject.FindWithTag(GameConstants.c_PlayerTag);
             if (l_player != null)
             {
                 GameManager.instance.player = l_player;
@@ -109,6 +110,12 @@ public class LevelManager : MonoBehaviour
             Debug.LogWarning("LevelManager: no valid level prefab at index " + a_index);
             return;
         }
+
+        // Recycle every live pooled object (enemies, projectiles, effects) BEFORE destroying the
+        // level. They are parented under the level's holders, so destroying the level would
+        // otherwise take the pooled instances with it. DespawnAllActive reparents them back to the
+        // persistent pool root so they survive the swap and the next level starts clean.
+        PoolManager.DespawnAllActive();
 
         if (m_CurrentInstance != null)
         {

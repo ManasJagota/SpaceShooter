@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using MjCreates.Pooling;
 
 /// <summary>
 /// A class which spawns enemies in an area around it.
@@ -88,8 +89,8 @@ public class EnemySpawner : MonoBehaviour
         // Make sure the prefab is valid
         if (enemyPrefab != null)
         {
-            // Create the enemy gameobject
-            GameObject enemyGameObject = Instantiate(enemyPrefab, spawnLocation, enemyPrefab.transform.rotation, null);
+            // Create the enemy gameobject (pooled - reused instead of allocated each spawn)
+            GameObject enemyGameObject = PoolManager.Spawn(enemyPrefab, spawnLocation, enemyPrefab.transform.rotation);
             Enemy enemy = enemyGameObject.GetComponent<Enemy>();
             ShootingController[] shootingControllers = enemyGameObject.GetComponentsInChildren<ShootingController>();
 

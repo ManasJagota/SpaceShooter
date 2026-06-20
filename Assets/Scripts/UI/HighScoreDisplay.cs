@@ -1,46 +1,59 @@
-﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using MjCreates.Events;
 
 /// <summary>
-/// This class inherits from the UIelement class and handles the display of the high score
+/// Shows the player's high score. Listens for HighScoreChangedEvent instead of being polled/scanned,
+/// so it stays decoupled from the GameManager.
 /// </summary>
 public class HighScoreDisplay : UIelement
 {
     [Tooltip("The text UI to use for display")]
     public Text displayText = null;
 
+    // The last high score written to the label; lets us skip rebuilding the string when unchanged.
+    private int m_LastDisplayedHighScore = int.MinValue;
+
     /// <summary>
     /// Description:
-    /// Changes the high score display
+    /// Subscribes to high score changes while this display is enabled.
     /// Inputs:
     /// none
     /// Returns:
     /// void (no return)
     /// </summary>
-    public void DisplayHighScore()
+    private void OnEnable()
     {
-        if (displayText != null)
-        {
-            displayText.text = "High: " + GameManager.instance.highScore.ToString();
-        }
+        EventManager.Subscribe<HighScoreChangedEvent>(OnHighScoreChanged);
     }
 
     /// <summary>
     /// Description:
-    /// Overrides the virtual function UpdateUI() of the UIelement class and uses the DisplayHighScore function to update
+    /// Stops listening when disabled.
     /// Inputs:
     /// none
     /// Returns:
     /// void (no return)
     /// </summary>
-    public override void UpdateUI()
+    private void OnDisable()
     {
-        // This calls the base update UI function from the UIelement class
-        base.UpdateUI();
+        EventManager.Unsubscribe<HighScoreChangedEvent>(OnHighScoreChanged);
+    }
 
-        // The remaining code is only called for this sub-class of UIelement and not others
-        DisplayHighScore();
+    /// <summary>
+    /// Description:
+    /// Handles a high score change by updating the label.
+    /// Inputs:
+    /// HighScoreChangedEvent a_event (carries the new high score)
+    /// Returns:
+    /// void (no return)
+    /// </summary>
+    private void OnHighScoreChanged(HighScoreChangedEvent a_event)
+    {
+        if (displayText != null && a_event.HighScore != m_LastDisplayedHighScore)
+        {
+            m_LastDisplayedHighScore = a_event.HighScore;
+            displayText.text = "High: " + a_event.HighScore.ToString();
+        }
     }
 }

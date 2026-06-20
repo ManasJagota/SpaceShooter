@@ -1,5 +1,21 @@
 {
   "dependencies": {
+    "com.mjcreates.eventmanager": {
+      "version": "https://github.com/ManasJagota/EventManager.git?path=/Assets/Eventmanager#1.0.1",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "e18bc98f70f814187f7d6f66526ab9ca46f23b53"
+    },
+    "com.mjcreates.pooling": {
+      "version": "https://github.com/ManasJagota/PoolingSystem.git?path=/Assets/com.mjcreates.pooling#1.0.0",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.mjcreates.eventmanager": "https://github.com/ManasJagota/EventManager.git?path=/Assets/Eventmanager#1.0.1"
+      },
+      "hash": "32cd0c41f5c8aa3bb063ebeca3ab4f7453d56608"
+    },
     "com.unity.2d.animation": {
       "version": "10.2.1",
       "depth": 0,
@@ -129,13 +145,6 @@
       "dependencies": {
         "com.unity.test-framework": "1.1.9"
       },
-      "url": "https://packages.unity.com"
-    },
-    "com.unity.ide.vscode": {
-      "version": "1.2.5",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {},
       "url": "https://packages.unity.com"
     },
     "com.unity.inputsystem": {
