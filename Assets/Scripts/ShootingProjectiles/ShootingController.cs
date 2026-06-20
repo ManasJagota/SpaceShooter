@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using MjCreates.Pooling;
 
 /// <summary>
 /// A class which controlls player aiming and shooting
@@ -123,7 +124,7 @@ public class ShootingController : MonoBehaviour
 
             if (fireEffect != null)
             {
-                Instantiate(fireEffect, transform.position, transform.rotation, null);
+                PoolManager.Spawn(fireEffect, transform.position, transform.rotation);
             }
 
             // Restart the cooldown
@@ -144,8 +145,8 @@ public class ShootingController : MonoBehaviour
         // Check that the prefab is valid
         if (projectilePrefab != null)
         {
-            // Create the projectile
-            GameObject projectileGameObject = Instantiate(projectilePrefab, transform.position, transform.rotation, null);
+            // Create the projectile (pooled - reused instead of allocated each shot)
+            GameObject projectileGameObject = PoolManager.Spawn(projectilePrefab, transform.position, transform.rotation);
 
             // Account for spread
             Vector3 rotationEulerAngles = projectileGameObject.transform.rotation.eulerAngles;

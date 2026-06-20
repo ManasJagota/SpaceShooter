@@ -1,12 +1,16 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using MjCreates.Pooling;
+using MjCreates.Events;
 
 /// <summary>
 /// A class which controls enemy behaviour
 /// </summary>
-public class Enemy : MonoBehaviour
+public class Enemy : MonoBehaviour, IPoolable
 {
+    // Cached main camera, used by scrolling movement. Avoids a Camera.main lookup every frame.
+    private Camera m_MainCamera;
     [Header("Settings")]
     [Tooltip("The speed at which the enemy moves.")]
     public float moveSpeed = 5.0f;
@@ -70,6 +74,46 @@ public class Enemy : MonoBehaviour
     /// </summary>
     private void Start()
     {
+        ResolveFollowTarget();
+    }
+
+    /// <summary>
+    /// Description:
+    /// Pool hook. Runs each time this enemy is taken from the pool (Awake/Start do not re-run).
+    /// Re-acquires the follow target so a recycled enemy chases the player again. The spawner
+    /// also assigns followTarget explicitly, so this only covers the fallback path.
+    /// Inputs:
+    /// none
+    /// Returns:
+    /// void (no return)
+    /// </summary>
+    public void OnSpawn()
+    {
+        ResolveFollowTarget();
+    }
+
+    /// <summary>
+    /// Description:
+    /// Pool hook. Runs just before this enemy returns to the pool. Nothing to release here.
+    /// Inputs:
+    /// none
+    /// Returns:
+    /// void (no return)
+    /// </summary>
+    public void OnDespawn()
+    {
+    }
+
+    /// <summary>
+    /// Description:
+    /// Falls back to the GameManager's player as the follow target when one was not assigned.
+    /// Inputs:
+    /// none
+    /// Returns:
+    /// void (no return)
+    /// </summary>
+    private void ResolveFollowTarget()
+    {
         if (movementMode == MovementModes.FollowTarget && followTarget == null)
         {
             if (GameManager.instance != null && GameManager.instance.player != null)
@@ -89,8 +133,9 @@ public class Enemy : MonoBehaviour
     /// </summary>
     private void HandleBehaviour()
     {
-        // Check if the target is in range, then move
-        if (followTarget != null && (followTarget.position - transform.position).magnitude < followRange)
+        // Check if the target is in range, then move.
+        // sqrMagnitude vs followRange^2 avoids a square root every frame for every enemy.
+        if (followTarget != null && (followTarget.position - transform.position).sqrMagnitude < followRange * followRange)
         {
             MoveEnemy();
         }
@@ -110,40 +155,9 @@ public class Enemy : MonoBehaviour
     /// </summary>
     public void DoBeforeDestroy()
     {
-        AddToScore();
-        IncrementEnemiesDefeated();
-    }
-
-    /// <summary>
-    /// Description:
-    /// Adds to the game manager's score the score associated with this enemy if one exists
-    /// Input:
-    /// None
-    /// Returns:
-    /// void (no return)
-    /// </summary>
-    private void AddToScore()
-    {
-        if (GameManager.instance != null && !GameManager.instance.gameIsOver)
-        {
-            GameManager.AddScore(scoreValue);
-        }
-    }
-
-    /// <summary>
-    /// Description:
-    /// Increments the game manager's number of defeated enemies
-    /// Input:
-    /// none
-    /// Return:
-    /// void (no return)
-    /// </summary>
-    private void IncrementEnemiesDefeated()
-    {
-        if (GameManager.instance != null && !GameManager.instance.gameIsOver)
-        {
-            GameManager.instance.IncrementEnemiesDefeated();
-        }       
+        // Announce the defeat; the GameManager listens and handles score + win counting. The
+        // enemy no longer needs to know the GameManager exists.
+        EventManager.Publish(new EnemyDefeatedEvent(scoreValue));
     }
 
     /// <summary>
@@ -317,11 +331,14 @@ public class Enemy : MonoBehaviour
     /// <returns>Vector3: The desired scroll direction</returns>
     private Vector3 GetScrollDirection()
     {
-        Camera camera = Camera.main;
-        if (camera != null)
+        if (m_MainCamera == null)
         {
-            Vector2 screenPosition = camera.WorldToScreenPoint(transform.position);
-            Rect screenRect = camera.pixelRect;
+            m_MainCamera = Camera.main;
+        }
+        if (m_MainCamera != null)
+        {
+            Vector2 screenPosition = m_MainCamera.WorldToScreenPoint(transform.position);
+            Rect screenRect = m_MainCamera.pixelRect;
             if (!screenRect.Contains(screenPosition))
             {
                 return scrollDirection * -1;

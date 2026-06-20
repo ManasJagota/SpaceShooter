@@ -23,6 +23,9 @@ public class Controller : MonoBehaviour
     //The InputManager to read input from
     private InputManager inputManager;
 
+    // Cached main camera, used when aiming. Avoids a Camera.main lookup every frame.
+    private Camera m_MainCamera;
+
     /// <summary>
     /// Enum which stores different aiming modes
     /// </summary>
@@ -205,7 +208,6 @@ public class Controller : MonoBehaviour
 
             // Move the player using physics
             Vector2 force = transform.up * movement.y * Time.deltaTime * moveSpeed;
-            Debug.Log(force);
             myRigidbody.AddForce(force);
 
             // Rotate the player around the z axis
@@ -247,8 +249,12 @@ public class Controller : MonoBehaviour
     {
         if (Time.timeScale > 0)
         {
+            if (m_MainCamera == null)
+            {
+                m_MainCamera = Camera.main;
+            }
             // Rotate the player to look at the mouse.
-            Vector2 lookDirection = Camera.main.ScreenToWorldPoint(point) - transform.position;
+            Vector2 lookDirection = m_MainCamera.ScreenToWorldPoint(point) - transform.position;
 
             if (canAimWithMouse)
             {

@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using MjCreates.Pooling;
 
 /// <summary>
 /// This class handles the dealing of damage to health components.
@@ -96,15 +97,16 @@ public class Damage : MonoBehaviour
                 collidedHealth.TakeDamage(damageAmount);
                 if (hitEffect != null)
                 {
-                    Instantiate(hitEffect, transform.position, transform.rotation, null);
+                    PoolManager.Spawn(hitEffect, transform.position, transform.rotation);
                 }
                 if (destroyAfterDamage)
                 {
-                    if (gameObject.GetComponent<Enemy>() != null)
+                    Enemy enemy = gameObject.GetComponent<Enemy>();
+                    if (enemy != null)
                     {
-                        gameObject.GetComponent<Enemy>().DoBeforeDestroy();
+                        enemy.DoBeforeDestroy();
                     }
-                    Destroy(this.gameObject);
+                    PoolManager.Despawn(this.gameObject);
                 }
             }
         }

@@ -1,11 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
-using Unity.Collections;
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using UnityEngine.UIElements;
+using MjCreates.Events;
 
 /// <summary>
 /// Class which manages the game
@@ -87,6 +84,67 @@ public class GameManager : MonoBehaviour
 
     /// <summary>
     /// Description:
+    /// Subscribes to the gameplay events this manager reacts to. Paired with OnDisable so the
+    /// handlers never outlive the manager.
+    /// Inputs:
+    /// none
+    /// Returns:
+    /// void (no return)
+    /// </summary>
+    private void OnEnable()
+    {
+        EventManager.Subscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
+        EventManager.Subscribe<PlayerDiedEvent>(OnPlayerDied);
+    }
+
+    /// <summary>
+    /// Description:
+    /// Unsubscribes from the gameplay events.
+    /// Inputs:
+    /// none
+    /// Returns:
+    /// void (no return)
+    /// </summary>
+    private void OnDisable()
+    {
+        EventManager.Unsubscribe<EnemyDefeatedEvent>(OnEnemyDefeated);
+        EventManager.Unsubscribe<PlayerDiedEvent>(OnPlayerDied);
+    }
+
+    /// <summary>
+    /// Description:
+    /// Reacts to an enemy being defeated: awards its score and counts it toward the level's
+    /// victory condition. Ignored once the game is over (mirrors the old in-enemy guard).
+    /// Input:
+    /// EnemyDefeatedEvent a_event (carries the defeated enemy's score value)
+    /// Return:
+    /// void (no return)
+    /// </summary>
+    private void OnEnemyDefeated(EnemyDefeatedEvent a_event)
+    {
+        if (gameIsOver)
+        {
+            return;
+        }
+        AddScore(a_event.ScoreValue);
+        IncrementEnemiesDefeated();
+    }
+
+    /// <summary>
+    /// Description:
+    /// Reacts to the player dying by ending the game.
+    /// Input:
+    /// PlayerDiedEvent a_event
+    /// Return:
+    /// void (no return)
+    /// </summary>
+    private void OnPlayerDied(PlayerDiedEvent a_event)
+    {
+        GameOver();
+    }
+
+    /// <summary>
+    /// Description:
     /// Standard Unity function called once before the first Update
     /// Inputs: 
     /// none
@@ -109,15 +167,16 @@ public class GameManager : MonoBehaviour
     /// </summary>
     void HandleStartUp()
     {
-        if (PlayerPrefs.HasKey("highscore"))
+        if (PlayerPrefs.HasKey(GameConstants.c_HighScoreKey))
         {
-            highScore = PlayerPrefs.GetInt("highscore");
+            highScore = PlayerPrefs.GetInt(GameConstants.c_HighScoreKey);
         }
-        if (PlayerPrefs.HasKey("score"))
+        if (PlayerPrefs.HasKey(GameConstants.c_ScoreKey))
         {
-            score = PlayerPrefs.GetInt("score");
+            score = PlayerPrefs.GetInt(GameConstants.c_ScoreKey);
         }
-        UpdateUIElements();
+        EventManager.Publish(new HighScoreChangedEvent(highScore));
+        EventManager.Publish(new ScoreChangedEvent(score));
         if (printDebugOfWinnableStatus)
         {
             FigureOutHowManyEnemiesExist();
@@ -197,6 +256,54 @@ public class GameManager : MonoBehaviour
 
     /// <summary>
     /// Description:
+    /// Configures the shared GameManager for a freshly loaded level prefab.
+    /// Copies the level-specific values from the Level component, resets the
+    /// per-level state (enemies defeated, game over flag), re-enables the player,
+    /// and clears any open UI pages so gameplay can resume. Called by LevelManager
+    /// each time a level prefab is instantiated.
+    /// Input:
+    /// Level level (the Level component on the instantiated level prefab; may be null)
+    /// Return:
+    /// void (no return)
+    /// </summary>
+    /// <param name="a_level">The Level config component from the loaded level prefab</param>
+    public void ConfigureForLevel(Level a_level)
+    {
+        if (a_level != null)
+        {
+            enemiesToDefeat = a_level.EnemiesToDefeat;
+            victoryEffect = a_level.VictoryEffect;
+        }
+
+        enemiesDefeated = 0;
+        gameIsOver = false;
+        // Loading a level means we are in a playable, winnable state. Set this here so
+        // it does not depend on the (persistent) GameManager's authored menu value.
+        gameIsWinnable = true;
+
+        if (player != null)
+        {
+            player.SetActive(true);
+        }
+
+        if (uiManager != null)
+        {
+            uiManager.allowPause = true;
+            uiManager.SetActiveAllPages(false);
+        }
+
+        if (printDebugOfWinnableStatus)
+        {
+            FigureOutHowManyEnemiesExist();
+        }
+
+        EventManager.Publish(new ScoreChangedEvent(score));
+        EventManager.Publish(new HighScoreChangedEvent(highScore));
+        EventManager.Publish(new LevelLoadedEvent());
+    }
+
+    /// <summary>
+    /// Description:
     /// Standard Unity function that gets called when the application (or playmode) ends
     /// Input:
     /// none
@@ -225,7 +332,7 @@ public class GameManager : MonoBehaviour
         {
             SaveHighScore();
         }
-        UpdateUIElements();
+        EventManager.Publish(new ScoreChangedEvent(score));
     }
     
     /// <summary>
@@ -238,8 +345,9 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public static void ResetScore()
     {
-        PlayerPrefs.SetInt("score", 0);
+        PlayerPrefs.SetInt(GameConstants.c_ScoreKey, 0);
         score = 0;
+        EventManager.Publish(new ScoreChangedEvent(0));
     }
 
     /// <summary>
@@ -254,10 +362,10 @@ public class GameManager : MonoBehaviour
     {
         if (score > instance.highScore)
         {
-            PlayerPrefs.SetInt("highscore", score);
+            PlayerPrefs.SetInt(GameConstants.c_HighScoreKey, score);
             instance.highScore = score;
+            EventManager.Publish(new HighScoreChangedEvent(instance.highScore));
         }
-        UpdateUIElements();
     }
 
     /// <summary>
@@ -270,41 +378,25 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public static void ResetHighScore()
     {
-        PlayerPrefs.SetInt("highscore", 0);
+        PlayerPrefs.SetInt(GameConstants.c_HighScoreKey, 0);
         if (instance != null)
         {
             instance.highScore = 0;
         }
-        UpdateUIElements();
-    }
-
-    /// <summary>
-    /// Description:
-    /// Sends out a message to UI elements to update
-    /// Input: 
-    /// none
-    /// Returns: 
-    /// void (no return)
-    /// </summary>
-    public static void UpdateUIElements()
-    {
-        if (instance != null && instance.uiManager != null)
-        {
-            instance.uiManager.UpdateUI();
-        }
+        EventManager.Publish(new HighScoreChangedEvent(0));
     }
 
     /// <summary>
     /// Description:
     /// Ends the level, meant to be called when the level is complete (enough enemies have been defeated)
-    /// Inputs: 
+    /// Inputs:
     /// none
-    /// Returns: 
+    /// Returns:
     /// void (no return)
     /// </summary>
     public void LevelCleared()
     {
-        PlayerPrefs.SetInt("score", score);
+        PlayerPrefs.SetInt(GameConstants.c_ScoreKey, score);
         if (uiManager != null)
         {
             player.SetActive(false);
@@ -314,7 +406,8 @@ public class GameManager : MonoBehaviour
             {
                 Instantiate(victoryEffect, transform.position, transform.rotation, null);
             }
-        }     
+        }
+        EventManager.Publish(new LevelClearedEvent());
     }
 
     [Header("Game Over Settings:")]
@@ -347,5 +440,6 @@ public class GameManager : MonoBehaviour
             uiManager.allowPause = false;
             uiManager.GoToPage(gameOverPageIndex);
         }
+        EventManager.Publish(new GameOverEvent());
     }
 }

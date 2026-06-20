@@ -1,11 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using MjCreates.Pooling;
 
 /// <summary>
 /// A class which destroys it's gameobject after a certain amount of time
 /// </summary>
-public class TimedObjectDestroyer : MonoBehaviour
+public class TimedObjectDestroyer : MonoBehaviour, IPoolable
 {
     [Tooltip("The lifetime of this gameobject")]
     public float lifetime = 5.0f;
@@ -46,12 +47,39 @@ public class TimedObjectDestroyer : MonoBehaviour
     {
         if (timeAlive > lifetime)
         {
-            Destroy(this.gameObject);
+            // Despawn returns the object to its pool when pooled, otherwise destroys it.
+            PoolManager.Despawn(this.gameObject);
         }
         else
         {
             timeAlive += Time.deltaTime;
         }
+    }
+
+    /// <summary>
+    /// Description:
+    /// Pool hook. Runs each time this object is taken from the pool. Resets the lifetime timer
+    /// so a reused projectile/effect lives for its full duration again.
+    /// Inputs:
+    /// none
+    /// Returns:
+    /// void (no return)
+    /// </summary>
+    public void OnSpawn()
+    {
+        timeAlive = 0.0f;
+    }
+
+    /// <summary>
+    /// Description:
+    /// Pool hook. Runs just before this object returns to the pool. Nothing to release here.
+    /// Inputs:
+    /// none
+    /// Returns:
+    /// void (no return)
+    /// </summary>
+    public void OnDespawn()
+    {
     }
 
     /// <summary>
